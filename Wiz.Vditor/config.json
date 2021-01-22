@@ -1,0 +1,14 @@
+
+{
+    "gitee": {
+        "message": "have something",
+        "branch": "master",
+        "token": "xxxxxxxxxxxxxxxxxxxx",
+        "userName": "Wolfmoor",
+        "repositorie": "IMG",
+        "Folder": "img",
+        "BucketDomain": "https://gitee.com/api/v5/repos/",
+        "NoteRe":"MarkDownNote",
+        "NoteReFolder":"notes"
+    }
+}
