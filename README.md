@@ -1,5 +1,8 @@
 # Wiz.Vditor
 基于[Vditor](https://github.com/Vanessa219/vditor)的为知笔记所见即所得markdown编辑器插件   
+![](https://gitee.com/Wolfmoor/IMG/raw/master/img/1611308635.8018122.png)
+
+
 # 支持版本
 目前只在Windows测试通过
 # 如何使用
