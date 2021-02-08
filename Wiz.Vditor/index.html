@@ -11,9 +11,9 @@
     <script src="https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js" defer></script> -->
 
     <!-- 引用本地 js 和 css -->
-    <link rel="stylesheet" href="./dist/index.css" />
-    <script src="./dist/index.min.js" defer></script>
-    <script src="http://libs.baidu.com/jquery/2.0.3/jquery.min.js"></script>
+    <link rel="stylesheet" href="dist/index.css" />
+    <script src="dist/index.min.js" defer></script>
+    <script src="jquery-3.5.1.min.js"></script>
     <title>Vditor Demo</title>
 </head>
 
@@ -21,17 +21,23 @@
     <div id="vditor" style="height: -webkit-fill-available;"></div>
 </body>
 <script>
+    var filesDirName = "index_files/";      // 本地文件目录名，不可更改
     var objApp = window.external;
     var objDatabase = null;
     var objDocument = null;
+    var objCommon = getObjCommon();
+    var filesFullPath;
+    var guid = "";
     //读gitee配置
     var giteeSet;
+    var imgToWiz;
     $.ajaxSettings.async = false;
     try {
         $.getJSON("config.json", function (data) { //each循环 使用$.each方法遍历返回的数据date
 
             var d = $.Deferred();
             giteeSet = data.gitee;
+            imgToWiz = data.imgToWiz;
         });
 
     } catch (error) {
@@ -45,6 +51,7 @@
             after() {
                 console.log("渲染完成");
                 loadDocument(vditor);
+                filesFullPath = getLocalFilesPath();
             },
             //图片粘贴事件
             upload: {
@@ -55,11 +62,18 @@
                 },
                 handler(files) {
                     console.log(files);
-                    Upload_One(files[0], function (resurl) {
-                        console.log(resurl);
-                        let mdimgurl = "![](" + resurl + ")"
-                        vditor.insertValue(mdimgurl, render = true)
-                    });
+                    if (imgToWiz) {
+                        var filename = objCommon.ClipboardToImage(objApp.Window.HWND, "");
+                        let mdimgurl = "![](" + Upload_Wiz(filename) + ")";
+                        vditor.insertValue(mdimgurl, render = true);
+                    } else {
+                        Upload_One(files[0], function (resurl) {
+                            console.log(resurl);
+                            let mdimgurl = "![](" + resurl + ")"
+                            vditor.insertValue(mdimgurl, render = true);
+                        });
+                    }
+
                 }
 
             }
@@ -67,6 +81,11 @@
         });
         document.getElementById('vditor').append(vditor);
 
+    }
+
+    //上传图片到Wiz
+    function Upload_Wiz(filename) {
+        return saveImageToLocal(filename)[0];
     }
 
     //上传图片到码云
@@ -119,7 +138,7 @@
 
     // 加载文档
     function loadDocument(vditor) {
-        var guid = getQueryString("guid", location.href);
+        guid = getQueryString("guid", location.href);
         var kbGUID = getQueryString("kbguid", location.href);
 
         if (kbGUID == "" || kbGUID == null) {
@@ -132,9 +151,10 @@
         try {
             objDocument = objDatabase.DocumentFromGUID(guid);
             docTitle = objDocument.Title;
-            document.title = "编辑 " + objDocument.Title.replace(new RegExp(".md", "gi"), "");
+            document.title = "编辑 " + docTitle;
 
             var content = objDocument.GetText(0);
+            //console.log(content);
             vditor.setValue(content, clearStack = false);
 
         } catch (err) { }
@@ -174,13 +194,132 @@
     //保存事件
     function OnPluginSave() {
         var doc = vditor.getValue();
+        var arrResult = dealImgDoc(doc);
         doc = $('<div/>').text(doc).html();
         doc = doc.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');   // 替换制表符
         doc = doc.replace(/\n|\r|(\r\n)|(\u0085)|(\u2028)|(\u2029)/g, "<br/>")//.replace(/ /g, '\u00a0');
+        doc += arrResult[1];
         doc = "<!DOCTYPE html><html><head><style id=\"wiz_custom_css\"></style></head><body>" + doc + "</body></html>";
+        //console.log(doc);
         objDocument.UpdateDocument3(doc, 0);
     };
     ///////////
+
+    // 处理带图片内容
+    function dealImgDoc(doc) {
+        var arrImgTags = "";
+
+        function dealImg(imgSrc) {
+            var result = saveImageToLocal(imgSrc);
+            arrImgTags += result[1];
+            return result[0];
+        }
+
+        var imgReg = /(!\[[^\[]*?\]\()(.+?)(\s+['"][\s\S]*?['"])?(\))/g;
+        doc = doc.replace(imgReg, function (whole, a, b, c, d) {
+            if (c) {
+                return a + dealImg(b) + c + d;
+            } else {
+                return a + dealImg(b) + d;
+            }
+        });
+
+        var imgStrDiv = "";
+        if (arrImgTags != "") {
+            imgStrDiv = "<ed_tag name=\"markdownimage\" style=\"display:none;\">" + arrImgTags + "</ed_tag>";
+        };
+        return [doc, imgStrDiv];
+    }
+
+    ////////////////////////////////////////////////
+
+    // 保存图片到本地临时目录
+    // 返回新图片路径名和图片HTML标签内容
+    function saveImageToLocal(filename) {
+        filename = filename.replace(/\\/g, '/');
+        var imgName = filename.substring(filename.lastIndexOf('/') + 1);
+        var filenameNew = filename;
+        var tagImg = "";
+
+        var imgFullPath = "";
+        if (filename.indexOf(filesDirName) == 0) {
+            imgFullPath = filesFullPath + imgName;
+        }
+        else {
+            imgFullPath = filename;
+            if (imgFullPath.indexOf("file:///") == 0) {
+                imgFullPath = imgFullPath.substring(8);
+            }
+        }
+
+        if (imgFullPath != "") {
+            if (objCommon.PathFileExists(imgFullPath)) {
+
+                // 转换可能包含中文名的名称，转换成Unicode
+                var imgNameNew = escape(imgName).replace(/%/g, '_');
+
+                // 如果超过50个字符，则简短
+                var extPos = imgNameNew.lastIndexOf('.');
+                if (extPos == -1) {
+                    extPos = imgNameNew.length;
+                }
+                var imgNameWithoutExt = imgNameNew.substring(0, extPos);
+                var imgExt = imgNameNew.substring(extPos);
+                if (imgNameNew.length > 50) {
+                    imgNameWithoutExt = imgNameWithoutExt.substring(0, 35 - imgExt.length);
+                    imgNameNew = imgNameWithoutExt + imgExt;
+                }
+
+                // 路径不同，则进行拷贝
+                var imgCopyToFullPath = filesFullPath + imgNameNew;
+                if (imgFullPath != imgCopyToFullPath) {
+
+                    // 目标文件已经存在
+                    if (objCommon.PathFileExists(imgCopyToFullPath)) {
+                        var date = new Date();
+                        imgNameNew = imgNameWithoutExt + date.getTime() + imgExt;
+                        if (imgNameNew.length > 50) {
+                            imgNameWithoutExt = imgNameWithoutExt.substring(0, 35 - imgExt.length);
+                            imgNameNew = imgNameWithoutExt + date.getTime() + imgExt;
+                        }
+                        imgCopyToFullPath = filesFullPath + imgNameNew;
+                    }
+
+                    objCommon.CopyFile(imgFullPath, imgCopyToFullPath);
+                }
+
+                filenameNew = filesDirName + imgNameNew;
+                tagImg = "<img src=\"" + imgCopyToFullPath + "\">";
+            }
+        }
+
+        return [filenameNew, tagImg];
+    }
+    /////////////////////////////
+
+    // 获得为知常用操作对象
+    function getObjCommon() {
+        if (objCommon == null) {
+            try {
+                objCommon = objApp.CreateWizObject("WizKMControls.WizCommonUI");
+            }
+            catch (err) {
+            }
+        }
+        return objCommon;
+    };
+    //////////////////////////////
+
+    // 得到本地文件路径
+    function getLocalFilesPath() {
+
+        var htmlName = document.location.href;
+        var htmlPath = htmlName.substring(0, htmlName.lastIndexOf('/') + 1);
+        var htmlWinPath = htmlPath.substring(8);
+        return decodeURI(htmlWinPath + filesDirName);
+    }
+
+    ////////////////////////////////////////////////
 </script>
 
 </html>
