@@ -9,6 +9,7 @@
 
 - 当前最新版本
   - 支持了默认上传图片到为知，无需配置
+  - 只会打开.md和.MD后缀的文件，不会因为误操作打开为知格式的笔记而导致格式丢失了
 
 # 如何使用
 
@@ -22,6 +23,6 @@
 
   
 
-  ![](https://gitee.com/Wolfmoor/IMG/raw/master/img/1601358148.1485379.png)
+    ![](https://gitee.com/Wolfmoor/IMG/raw/master/img/1601358148.1485379.png)
 
 4. 启动wiz客户端
