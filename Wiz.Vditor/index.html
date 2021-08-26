@@ -52,6 +52,7 @@
                 console.log("渲染完成");
                 loadDocument(vditor);
                 filesFullPath = getLocalFilesPath();
+                vditor.vditor.toolbar.elements.fullscreen.firstElementChild.dispatchEvent(new CustomEvent("click"));
             },
             //图片粘贴事件
             upload: {
