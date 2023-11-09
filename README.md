@@ -19,7 +19,7 @@
 2. 下载代码，把Wiz.Vditor文件夹拷贝到Plugins下     
 
 3. **一般用户可以忽略此步骤：**根据你是否使用码云图床修改配置文件：config.json。如果不用码云则不用修改，图片会默认上传到wiz 。如果用码云，那么下图中的"imgToWiz"必须配置为false，且"gitee"中的配置按照图中修改
-    ![1612770551559](https://gitee.com/WolfMoss/IMG/raw/master/img/202102/08/154912-496172.png)  
+    ![](https://gitee.com/WolfMoss/IMG/raw/master/img/202102/08/154912-496172.png)  
 
   
 
